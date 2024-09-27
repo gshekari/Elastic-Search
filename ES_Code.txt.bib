@@ -1,0 +1,510 @@
+
+// cluster's health
+GET /_cluster/health
+
+//add Index
+PUT /paper
+
+//Check cluster's health
+GET /_cluster/health
+
+
+//list all the indices
+//_cat : returns information in a concise, easy-to-read format
+// ?v : add a header row
+GET /_cat/indices?v
+
+//list all the nodes
+GET /_cat/nodes?v
+
+//controls which indices should be included in the results
+GET /_cat/indices?v&expand_wildcards=all
+
+//list all the shards
+GET /_cat/shards?v
+
+//delete an Index
+DELETE /page
+
+
+//replace the page index with the products Index
+DELETE /products
+PUT /products
+{
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 1
+  }
+}
+
+
+//adding a document, with a body
+POST /products/_doc
+{
+  "name": "Coffe Maker",
+  "price": 54,
+  "In Stock": 10
+}
+
+POST /products/_doc
+{
+  "name": "Toaster",
+  "price": 25,
+  "In Stock": 4
+}
+
+//retrieve all documents
+GET /products/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+
+//retrieve a specific documents
+GET /products/_doc/V4KCJJIB5YLN1baKVxEo
+
+
+//retrieve documents with conditional search
+GET /products/_search
+{
+  "query": {
+    "match": { 
+      "In Stock": 4
+      
+    } 
+    
+  } 
+  
+}
+
+
+//Update a specific document
+POST /products/_doc/V4KCJJIB5YLN1baKVxEo
+{
+  "In Stock": 2
+}
+
+
+//add new field
+POST /products/_update/V4KCJJIB5YLN1baKVxEo
+{
+  "doc": {
+    "brand": "BrandX"
+  }
+}
+
+
+//Using Scripts to Update a Field Dynamically:
+POST /products/_update/V4KCJJIB5YLN1baKVxEo
+{
+  "script" : {
+    "source": "ctx._source['In Stock'] += 5"
+  }
+}
+
+
+//Upsert (Update or Insert):
+
+
+
+
+//Full Document Replacement with PUT
+PUT /products/_doc/123
+{
+  "name": "Coffee Maker",
+  "price": 54,
+  "In Stock": 20,
+  "brand": "BrandX"
+}
+
+
+//Script Update 
+POST /products/_update/V4KCJJIB5YLN1baKVxEo
+{
+  "script": {
+    "source": "ctx._source['In Stock'] += params.increment",
+    "params": {
+      "increment": 5
+    }
+  }
+}
+
+//Conditional Script Update
+POST /products/_update/V4KCJJIB5YLN1baKVxEo
+{
+  "script": {
+    "source": "if (ctx._source['In Stock'] < 20) { ctx._source['In Stock'] += 5; }"
+  }
+}
+
+
+
+/*
+ctx._id: The document ID.
+ctx._index: The index where the document is stored.
+ctx._version: The version of the document.
+ctx.op: Operation type (e.g., create, index, delete).
+ctx.now: Current timestamp when the script is executed.
+*/
+
+
+
+/*
+This command updates a specific document (ID 1) in the products index,
+ensuring the update is applied only if the document version is 1.
+*/
+POST /products/_update/1?version=1
+{
+  "doc": {
+    "price": 1000
+  }
+}
+
+
+
+/*
+Similar to the previous operation but with the added retry_on_conflict=3,
+ which will retry the update up to 3 times if a version conflict occurs.
+*/
+POST /products/_update/1?retry_on_conflict=3
+{
+  "doc": {
+    "price": 1000
+  }
+}
+
+
+
+/*
+This operation updates all documents in the
+products index where the category is "electronics",
+increasing their price by 10% using a script.
+*/
+POST /products/_update_by_query
+{
+  "query": {
+    "term": {
+      "category": "electronics"
+    }
+  },
+  "script": {
+    "source": "ctx._source.price *= 1.1"
+  }
+}
+
+
+
+/*
+This query updates all documents
+in the products index, setting their status
+field to "active". It applies to all documents.
+*/
+POST /products/_update_by_query
+{
+  "query": {
+    "match_all": {}
+  },
+  "script": {
+    "source": "ctx._source['status'] = 'active'"
+  }
+}
+
+
+/*
+"gt": Greater than .
+"gte": Greater than or equal to .
+"lt": Less than .
+"lte": Less than or equal to .
+*/
+
+//use the Delete by Query API to delete all documents from an index
+POST /products/_delete_by_query
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+
+/*
+If a document is updated while a delete-by-query operation
+is in progress, Elasticsearch can throw a conflict.
+*/
+
+
+//a single line bulk request for update, doc, and delete operations 
+POST /_bulk
+{ "update": { "_index": "products", "_id": 200 } }
+{ "doc": { "price": 1100 } }
+{ "delete": { "_index": "products", "_id": 201 } }
+
+
+POST /products/_bulk
+{ "index": { "_id": 1 } } { "name": "Laptop", "price": 1200, "in_stock": 50 }
+{ "update": { "_id": 1 } } { "doc": { "price": 1100 } }
+{ "delete": { "_id": 2 } }
+Explanation:
+Index: Adds a new document with ID 1 containing the fields name, price, and in_stock.
+Update: Updates the document with ID 1, changing only the price to 1100.
+Delete: Deletes the document with ID 2.
+
+
+POST /_analyze
+{
+  "analyzer": "standard",
+  "text": "The quick brown fox jumps over the lazy dog."
+}
+
+
+// Keyword Data Type
+PUT /products
+{
+  "mappings": {
+    "properties": {
+      "category": { "type": "keyword" }
+    }
+  }
+}
+
+//maping: Creates the products index with explicit mappings for the fields:
+PUT /products
+{
+  "mappings": {
+    "properties": {
+      "name": { "type": "text" },
+      "price": { "type": "float" },
+      "release_date": { "type": "date" },
+      "in_stock": { "type": "boolean" }
+    }
+  }
+}
+
+
+
+//type coercion in ElasticSearch:Even though price is provided as a string ("299.99") and in_stock is a string ("true")
+//ElasticSearch will automatically convert (coerce) these values to the appropriate types
+PUT /products/_doc/1
+{
+  "price": "299.99",
+  "in_stock": "true"
+}
+
+
+//arrays in ElasticSearch:
+PUT /products/_doc/1
+{
+  "tags": ["electronics", "tablet", "sale"]
+}
+
+
+
+//retrieving mappings:Retrieves the current mapping of the products index.
+GET /products/_mapping
+
+
+
+//dot notation in mappings:product is treated as an object containing name and price as its fields.
+PUT /products
+{
+  "mappings": {
+    "properties": {
+      "product.name": { "type": "text" },
+      "product.price": { "type": "float" }
+    }
+  }
+}
+
+
+
+//adding mappings to an existing index:Adds new fields (brand and release_date) to the existing products index.
+PUT /products/_mapping
+{
+  "properties": {
+    "brand": { "type": "keyword" },
+    "release_date": { "type": "date" }
+  }
+}
+
+
+
+//adding mappings to an existing index:If you need to change the mapping of an existing field,
+//you'll need to create a new index with the correct mappings and reindex the data.
+
+json
+Copy code
+PUT /products/_mapping
+{
+  "properties": {
+    "brand": { "type": "keyword" },
+    "release_date": { "type": "date" }
+  }
+}
+
+
+///Specifies that the release_date must follow the yyyy/MM/dd format
+PUT /products
+{
+  "mappings": {
+    "properties": {
+      "release_date": {
+        "type": "date",
+        "format": "yyyy/MM/dd"
+      }
+    }
+  }
+}
+
+
+
+//Searches for documents where the release_date is between January 1, 2023, and December 31, 2023.
+GET /products/_search
+{
+  "query": {
+    "range": {
+      "release_date": {
+        "gte": "2023-01-01",
+        "lte": "2023-12-31"
+      }
+    }
+  }
+}
+
+
+
+//Query for Missing Fields:Returns all documents where the price field is missing.
+GET /products/_search
+{
+  "query": {
+    "bool": {
+      "must_not": {
+        "exists": {
+          "field": "price"
+        }
+      }
+    }
+  }
+}
+
+
+//Sorting with Missing Fields:Sorts documents by price in ascending order,
+//but places documents with missing price values at the end.
+
+json
+Copy code
+GET /products/_search
+{
+  "sort": [
+    { "price": { "order": "asc", "missing": "_last" } }
+  ]
+}
+
+
+
+//Aggregation Ignoring Missing Fields:Computes the average price 
+//but ignores documents that are missing the price field.
+
+json
+Copy code
+GET /products/_search
+{
+  "aggs": {
+    "avg_price": {
+      "avg": {
+        "field": "price"
+      }
+    }
+  }
+}
+
+
+
+
+//Using a Default Value in Script:Uses 0 as a default value 
+//when price is missing in documents during scoring.
+
+json
+Copy code
+GET /products/_search
+{
+  "query": {
+    "script_score": {
+      "script": {
+        "source": "doc['price'].value != null ? doc['price'].value : 0"
+      }
+    }
+  }
+}
+
+
+
+//Reindexing with Query: Only reindexes documents where the
+//category field is "electronics" from old_products to new_products.
+POST /_reindex
+{
+  "source": {
+    "index": "old_products",
+    "query": {
+      "term": { "category": "electronics" }
+    }
+  },
+  "dest": {
+    "index": "new_products"
+  }
+}
+
+
+//Reindexing with Script
+You can modify the documents being reindexed using a script. For example, you can transform field values while reindexing.
+
+Example:
+POST /_reindex
+{
+  "source": {
+    "index": "old_products"
+  },
+  "dest": {
+    "index": "new_products"
+  },
+  "script": {
+    "source": "ctx._source.price = ctx._source.price * 1.1"
+  }
+}
+
+
+//Reindexing Between Clusters
+POST /_reindex
+{
+  "source": {
+    "remote": {
+      "host": "http://remote-cluster:9200"
+    },
+    "index": "remote_products"
+  },
+  "dest": {
+    "index": "local_products"
+  }
+}
+
+
+
+
+//You can search name for parts of a word , 
+//ou can use name.keyword to search for an exact match (e.g., "MacBook Pro").
+
+PUT /products 
+{
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",      // For full-text search
+        "fields": {
+          "keyword": {       // For exact matches
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}
